@@ -1,0 +1,49 @@
+etl:
+  - id: monthly_user_summary
+    name: Monthly User Purchase Summary
+    description: Generate monthly user purchase statistics
+
+    source:
+      entities:
+        users:
+          table: users
+          fields:
+            - id
+            - name
+            - email
+            - created_at
+        orders:
+          table: orders
+          fields:
+            - id
+            - user_id
+            - amount
+            - created_at
+
+      relationships:
+        - type: one_to_many
+          from: users
+          to: orders
+          on:
+            users.id: orders.user_id
+
+      conditions:
+        - orders.created_at: last_month
+
+      mapping:
+        - source: users.id
+          target: user_id
+        - source: users.name
+          target: user_name
+        - source: orders.amount
+          target: total_amount
+          aggregate: sum
+
+      group_by:
+        - users.id
+        - users.name
+        - users.email
+
+    output:
+      format: csv
+      path: tests/fixtures/output/monthly_user_summary.csv 

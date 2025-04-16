@@ -1,0 +1,29 @@
+etl:
+  - id: invalid_job
+    name: Invalid Job
+    description: This job should fail
+
+    source:
+      entities:
+        users:
+          table: users
+          fields:
+            - id
+            - name
+            - email
+            - created_at
+      relationships:
+        - type: invalid_type
+          from: users
+          to: orders
+          on:
+            users.id: orders.user_id
+      mapping:
+        - source: users.id
+          target: user_id
+        - source: users.name
+          target: user_name
+
+    output:
+      format: invalid_format
+      path: /tmp/invalid_output.txt 
