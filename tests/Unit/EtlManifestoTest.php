@@ -2,22 +2,22 @@
 
 namespace Laravelplus\EtlManifesto\Tests\Unit;
 
-use Laravelplus\EtlManifesto\Tests\TestCase;
-use Laravelplus\EtlManifesto\EtlManifesto;
 use Illuminate\Support\Facades\DB;
+use Laravelplus\EtlManifesto\EtlManifesto;
+use Laravelplus\EtlManifesto\Tests\TestCase;
 
 class EtlManifestoTest extends TestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Drop existing tables
         $this->dropTables();
-        
+
         // Create test tables
         $this->createTestTables();
-        
+
         // Insert test data
         $this->insertTestData();
     }
@@ -77,14 +77,14 @@ class EtlManifestoTest extends TestCase
                 'product_id' => 'P001',
                 'quantity' => 2,
                 'amount' => 100.00,
-                'created_at' => now()->subMonth()->startOfMonth()->addDays(5)
+                'created_at' => now()->subMonth()->startOfMonth()->addDays(5),
             ],
             [
                 'user_id' => 1,
                 'product_id' => 'P002',
                 'quantity' => 1,
                 'amount' => 50.00,
-                'created_at' => now()->subMonth()->startOfMonth()->addDays(10)
+                'created_at' => now()->subMonth()->startOfMonth()->addDays(10),
             ],
         ]);
 
@@ -97,18 +97,18 @@ class EtlManifestoTest extends TestCase
 
     public function test_can_load_manifest()
     {
-        $etl = new EtlManifesto();
-        $manifest = $etl->loadManifest(__DIR__ . '/../fixtures/etl.yml');
-        
+        $etl = new EtlManifesto;
+        $manifest = $etl->loadManifest(__DIR__.'/../fixtures/etl.yml');
+
         $this->assertInstanceOf(EtlManifesto::class, $manifest);
         $this->assertIsArray($etl->getManifest());
     }
 
     public function test_can_process_manifest()
     {
-        $etl = new EtlManifesto();
-        $results = $etl->loadManifest(__DIR__ . '/../fixtures/etl.yml')->process();
-        
+        $etl = new EtlManifesto;
+        $results = $etl->loadManifest(__DIR__.'/../fixtures/etl.yml')->process();
+
         $this->assertIsArray($results);
         $this->assertArrayHasKey('files', $results);
         $this->assertArrayHasKey('errors', $results);
@@ -117,7 +117,7 @@ class EtlManifestoTest extends TestCase
     public function test_generates_correct_output()
     {
         $manifestPath = '/tmp/test_manifest.yml';
-        $manifestContent = <<<YAML
+        $manifestContent = <<<'YAML'
 etl:
   - id: test_export
     name: Test Export
@@ -134,7 +134,7 @@ etl:
 YAML;
         file_put_contents($manifestPath, $manifestContent);
 
-        $manifesto = new EtlManifesto();
+        $manifesto = new EtlManifesto;
         $manifesto->loadManifest($manifestPath);
         $results = $manifesto->process();
 
@@ -150,7 +150,7 @@ YAML;
     public function test_handles_errors_gracefully()
     {
         $manifestPath = '/tmp/invalid_manifest.yml';
-        $manifestContent = <<<YAML
+        $manifestContent = <<<'YAML'
 etl:
   - id: test_export
     name: Test Export
@@ -167,7 +167,7 @@ etl:
 YAML;
         file_put_contents($manifestPath, $manifestContent);
 
-        $manifesto = new EtlManifesto();
+        $manifesto = new EtlManifesto;
         $manifesto->loadManifest($manifestPath);
         $results = $manifesto->process();
 
@@ -183,4 +183,4 @@ YAML;
         $this->dropTables();
         parent::tearDown();
     }
-} 
+}

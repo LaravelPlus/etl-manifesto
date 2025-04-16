@@ -15,11 +15,11 @@ class QueryBuilder
     public function build(array $source): Builder
     {
         // Handle both old and new format
-        $mainEntity = is_array($source['entities']) && !isset($source['entities'][0]) 
-            ? array_key_first($source['entities']) 
+        $mainEntity = is_array($source['entities']) && ! isset($source['entities'][0])
+            ? array_key_first($source['entities'])
             : $source['entities'][0];
 
-        $tableName = is_array($source['entities']) && !isset($source['entities'][0])
+        $tableName = is_array($source['entities']) && ! isset($source['entities'][0])
             ? $source['entities'][$mainEntity]['table']
             : $mainEntity;
 
@@ -54,8 +54,8 @@ class QueryBuilder
                 $this->applyJoinOldFormat($query, $leftTable, $type, $rightTable);
             } else {
                 // New format: {type: one_to_many, from: users, to: orders, on: {...}}
-                if (!isset($relationship['type'], $relationship['from'], $relationship['to'], $relationship['on'])) {
-                    throw new InvalidArgumentException("Invalid relationship format");
+                if (! isset($relationship['type'], $relationship['from'], $relationship['to'], $relationship['on'])) {
+                    throw new InvalidArgumentException('Invalid relationship format');
                 }
 
                 $this->applyJoinNewFormat(
@@ -176,7 +176,7 @@ class QueryBuilder
      */
     protected function buildAggregateSelect(string $column, string $alias, string $function): Expression
     {
-        return match($function) {
+        return match ($function) {
             'sum' => DB::raw("SUM({$column}) as {$alias}"),
             'count' => DB::raw("COUNT({$column}) as {$alias}"),
             'avg' => DB::raw("AVG({$column}) as {$alias}"),
@@ -195,10 +195,12 @@ class QueryBuilder
         $parts = explode(',', $column);
         $concatParts = array_map(function ($part) {
             $part = trim($part);
+
             return strpos($part, '.') === false ? "'{$part}'" : $part;
         }, $parts);
 
         $concat = implode(' || ', $concatParts);
+
         return DB::raw("({$concat}) as {$alias}");
     }
 

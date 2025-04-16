@@ -26,9 +26,9 @@ class DataTransformer
 
         $type = $config['type'] ?? null;
 
-        return match($type) {
-            'lower' => strtolower((string)$data),
-            'upper' => strtoupper((string)$data),
+        return match ($type) {
+            'lower' => strtolower((string) $data),
+            'upper' => strtoupper((string) $data),
             'date' => $this->formatDate($data, $config['format'] ?? 'Y-m-d'),
             'number' => $this->formatNumber($data, $config['decimals'] ?? 2),
             'boolean' => $this->formatBoolean($data),
@@ -41,12 +41,13 @@ class DataTransformer
         if (is_numeric($date)) {
             return date($format, $date);
         }
+
         return date($format, strtotime($date));
     }
 
     protected function formatNumber($number, int $decimals): string
     {
-        return number_format((float)$number, $decimals);
+        return number_format((float) $number, $decimals);
     }
 
     protected function formatBoolean($value): string

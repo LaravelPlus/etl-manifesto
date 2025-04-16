@@ -2,9 +2,8 @@
 
 namespace Laravelplus\EtlManifesto\Tests\Unit\Services;
 
-use Laravelplus\EtlManifesto\Tests\TestCase;
 use Laravelplus\EtlManifesto\Services\DataTransformer;
-use Illuminate\Support\Collection;
+use Laravelplus\EtlManifesto\Tests\TestCase;
 
 class DataTransformerTest extends TestCase
 {
@@ -13,7 +12,7 @@ class DataTransformerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->transformer = new DataTransformer();
+        $this->transformer = new DataTransformer;
     }
 
     public function test_can_transform_to_lowercase()
@@ -64,4 +63,4 @@ class DataTransformerTest extends TestCase
         $result = $this->transformer->transform($data, ['type' => 'boolean']);
         $this->assertEquals('1', $result);
     }
-} 
+}

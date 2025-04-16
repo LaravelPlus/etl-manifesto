@@ -2,22 +2,22 @@
 
 namespace Laravelplus\EtlManifesto\Tests\Unit\Services;
 
-use Laravelplus\EtlManifesto\Tests\TestCase;
-use Laravelplus\EtlManifesto\Services\QueryBuilder;
 use Illuminate\Support\Facades\DB;
+use Laravelplus\EtlManifesto\Services\QueryBuilder;
+use Laravelplus\EtlManifesto\Tests\TestCase;
 
 class QueryBuilderTest extends TestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Drop existing tables
         $this->dropTables();
-        
+
         // Create test tables
         $this->createTestTables();
-        
+
         // Insert test data
         $this->insertTestData();
     }
@@ -64,28 +64,28 @@ class QueryBuilderTest extends TestCase
                 'product_id' => 'P001',
                 'quantity' => 2,
                 'amount' => 100.00,
-                'created_at' => now()->subMonth()->startOfMonth()->addDays(5)
+                'created_at' => now()->subMonth()->startOfMonth()->addDays(5),
             ],
             [
                 'user_id' => 1,
                 'product_id' => 'P002',
                 'quantity' => 1,
                 'amount' => 50.00,
-                'created_at' => now()->subMonth()->startOfMonth()->addDays(10)
+                'created_at' => now()->subMonth()->startOfMonth()->addDays(10),
             ],
         ]);
     }
 
     public function test_can_build_basic_query()
     {
-        $builder = new QueryBuilder();
+        $builder = new QueryBuilder;
         $config = [
             'entities' => ['users'],
             'mapping' => [
                 ['id' => 'users.id'],
                 ['name' => 'users.name'],
-                ['email' => 'users.email']
-            ]
+                ['email' => 'users.email'],
+            ],
         ];
 
         $query = $builder->build($config);
@@ -97,16 +97,16 @@ class QueryBuilderTest extends TestCase
 
     public function test_can_build_query_with_conditions()
     {
-        $builder = new QueryBuilder();
+        $builder = new QueryBuilder;
         $config = [
             'entities' => ['users'],
             'conditions' => [
-                ['users.is_active' => true]
+                ['users.is_active' => true],
             ],
             'mapping' => [
                 ['id' => 'users.id'],
-                ['name' => 'users.name']
-            ]
+                ['name' => 'users.name'],
+            ],
         ];
 
         $query = $builder->build($config);
@@ -117,7 +117,7 @@ class QueryBuilderTest extends TestCase
 
     public function test_can_build_query_with_aggregations()
     {
-        $builder = new QueryBuilder();
+        $builder = new QueryBuilder;
         $config = [
             'entities' => ['users', 'orders'],
             'relationships' => ['users hasMany orders'],
@@ -126,10 +126,10 @@ class QueryBuilderTest extends TestCase
                 ['name' => 'users.name'],
                 ['total_orders' => [
                     'function' => 'count',
-                    'column' => 'orders.id'
-                ]]
+                    'column' => 'orders.id',
+                ]],
             ],
-            'group_by' => ['users.id', 'users.name']
+            'group_by' => ['users.id', 'users.name'],
         ];
 
         $query = $builder->build($config);
@@ -141,25 +141,25 @@ class QueryBuilderTest extends TestCase
 
     public function test_can_build_query_with_concatenation()
     {
-        $builder = new QueryBuilder();
+        $builder = new QueryBuilder;
         $config = [
             'entities' => [
                 'users' => [
                     'table' => 'users',
-                    'fields' => ['id', 'name', 'email']
-                ]
+                    'fields' => ['id', 'name', 'email'],
+                ],
             ],
             'mapping' => [
                 [
                     'source' => 'users.id',
-                    'target' => 'id'
+                    'target' => 'id',
                 ],
                 [
                     'source' => 'users.name, " <", users.email, ">"',
                     'target' => 'display_name',
-                    'aggregate' => 'concat'
-                ]
-            ]
+                    'aggregate' => 'concat',
+                ],
+            ],
         ];
 
         $query = $builder->build($config);

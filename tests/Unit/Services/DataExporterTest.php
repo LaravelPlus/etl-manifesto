@@ -2,24 +2,25 @@
 
 namespace Laravelplus\EtlManifesto\Tests\Unit\Services;
 
-use Laravelplus\EtlManifesto\Tests\TestCase;
-use Laravelplus\EtlManifesto\Services\DataExporter;
 use Illuminate\Support\Collection;
+use Laravelplus\EtlManifesto\Services\DataExporter;
+use Laravelplus\EtlManifesto\Tests\TestCase;
 
 class DataExporterTest extends TestCase
 {
     protected $exporter;
+
     protected $testOutputDir;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
-        $this->exporter = new DataExporter();
-        $this->testOutputDir = __DIR__ . '/../../fixtures/output';
-        
+
+        $this->exporter = new DataExporter;
+        $this->testOutputDir = __DIR__.'/../../fixtures/output';
+
         // Ensure output directory exists and is writable
-        if (!is_dir($this->testOutputDir)) {
+        if (! is_dir($this->testOutputDir)) {
             mkdir($this->testOutputDir, 0777, true);
         }
     }
@@ -42,7 +43,7 @@ class DataExporterTest extends TestCase
 
         $config = [
             'format' => 'csv',
-            'path' => $this->testOutputDir . '/test.csv',
+            'path' => $this->testOutputDir.'/test.csv',
             'delimiter' => ',',
             'header' => true,
         ];
@@ -64,7 +65,7 @@ class DataExporterTest extends TestCase
 
         $config = [
             'format' => 'json',
-            'path' => $this->testOutputDir . '/test.json',
+            'path' => $this->testOutputDir.'/test.json',
         ];
 
         $result = $this->exporter->export($data, $config);
@@ -82,7 +83,7 @@ class DataExporterTest extends TestCase
 
         $config = [
             'format' => 'invalid',
-            'path' => $this->testOutputDir . '/test.txt',
+            'path' => $this->testOutputDir.'/test.txt',
         ];
 
         $this->expectException(\InvalidArgumentException::class);
@@ -97,7 +98,7 @@ class DataExporterTest extends TestCase
 
         $config = [
             'format' => 'csv',
-            'path' => $this->testOutputDir . '/subdir/test.csv',
+            'path' => $this->testOutputDir.'/subdir/test.csv',
         ];
 
         $result = $this->exporter->export($data, $config);
@@ -112,7 +113,7 @@ class DataExporterTest extends TestCase
 
         $config = [
             'format' => 'csv',
-            'path' => $this->testOutputDir . '/empty.csv',
+            'path' => $this->testOutputDir.'/empty.csv',
             'header' => true,
         ];
 
@@ -122,4 +123,4 @@ class DataExporterTest extends TestCase
         $this->assertFileExists($result['path']);
         $this->assertEquals(0, $result['row_count']);
     }
-} 
+}

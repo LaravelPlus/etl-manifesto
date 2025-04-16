@@ -2,13 +2,11 @@
 
 namespace Laravelplus\EtlManifesto\Tests;
 
-use Orchestra\Testbench\TestCase as Orchestra;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Config\Repository;
-use Illuminate\Support\Facades\Facade;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Connectors\ConnectionFactory;
+use Illuminate\Support\Facades\Facade;
+use Orchestra\Testbench\TestCase as Orchestra;
 
 class TestCase extends Orchestra
 {
@@ -17,8 +15,8 @@ class TestCase extends Orchestra
         parent::setUp();
 
         // Create Laravel application instance
-        $this->app = new \Illuminate\Foundation\Application();
-        $this->app->singleton('config', function() {
+        $this->app = new \Illuminate\Foundation\Application;
+        $this->app->singleton('config', function () {
             return new Repository([
                 'database' => [
                     'default' => 'sqlite',
@@ -32,7 +30,7 @@ class TestCase extends Orchestra
                 ],
             ]);
         });
-        
+
         // Set up database
         $this->capsule = new Capsule;
         $this->capsule->addConnection([
@@ -42,16 +40,16 @@ class TestCase extends Orchestra
         ]);
         $this->capsule->setAsGlobal();
         $this->capsule->bootEloquent();
-        
+
         // Register database service
-        $this->app->singleton('db.factory', function() {
+        $this->app->singleton('db.factory', function () {
             return new ConnectionFactory($this->app);
         });
-        
-        $this->app->singleton('db', function() {
+
+        $this->app->singleton('db', function () {
             return $this->capsule->getDatabaseManager();
         });
-        
+
         // Set facade root
         Facade::setFacadeApplication($this->app);
     }
@@ -69,4 +67,4 @@ class TestCase extends Orchestra
             'EtlManifesto' => \Laravelplus\EtlManifesto\Facades\EtlManifesto::class,
         ];
     }
-} 
+}
