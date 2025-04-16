@@ -12,11 +12,20 @@ class QueryBuilderTest extends TestCase
     {
         parent::setUp();
         
+        // Drop existing tables
+        $this->dropTables();
+        
         // Create test tables
         $this->createTestTables();
         
         // Insert test data
         $this->insertTestData();
+    }
+
+    protected function dropTables(): void
+    {
+        DB::statement('DROP TABLE IF EXISTS orders');
+        DB::statement('DROP TABLE IF EXISTS users');
     }
 
     protected function createTestTables()
@@ -134,13 +143,22 @@ class QueryBuilderTest extends TestCase
     {
         $builder = new QueryBuilder();
         $config = [
-            'entities' => ['users'],
+            'entities' => [
+                'users' => [
+                    'table' => 'users',
+                    'fields' => ['id', 'name', 'email']
+                ]
+            ],
             'mapping' => [
-                ['id' => 'users.id'],
-                ['display_name' => [
-                    'function' => 'concat',
-                    'columns' => ['users.name', ' " <"', 'users.email', '">"']
-                ]]
+                [
+                    'source' => 'users.id',
+                    'target' => 'id'
+                ],
+                [
+                    'source' => 'users.name, " <", users.email, ">"',
+                    'target' => 'display_name',
+                    'aggregate' => 'concat'
+                ]
             ]
         ];
 
@@ -148,6 +166,12 @@ class QueryBuilderTest extends TestCase
         $results = $query->get();
 
         $this->assertCount(2, $results);
-        $this->assertEquals('John Doe " <"john@example.com">"', $results[0]->display_name);
+        $this->assertEquals('John Doe" <"john@example.com">"', $results[0]->display_name);
     }
-} 
+
+    protected function tearDown(): void
+    {
+        $this->dropTables();
+        parent::tearDown();
+    }
+}

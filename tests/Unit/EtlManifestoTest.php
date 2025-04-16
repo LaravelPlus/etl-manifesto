@@ -12,11 +12,21 @@ class EtlManifestoTest extends TestCase
     {
         parent::setUp();
         
+        // Drop existing tables
+        $this->dropTables();
+        
         // Create test tables
         $this->createTestTables();
         
         // Insert test data
         $this->insertTestData();
+    }
+
+    protected function dropTables(): void
+    {
+        DB::statement('DROP TABLE IF EXISTS payments');
+        DB::statement('DROP TABLE IF EXISTS orders');
+        DB::statement('DROP TABLE IF EXISTS users');
     }
 
     protected function createTestTables()
@@ -166,5 +176,11 @@ YAML;
         $this->assertNotEmpty($results['errors']);
 
         unlink($manifestPath);
+    }
+
+    protected function tearDown(): void
+    {
+        $this->dropTables();
+        parent::tearDown();
     }
 } 

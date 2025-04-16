@@ -14,7 +14,16 @@ class QueryBuilder
      */
     public function build(array $source): Builder
     {
-        $query = DB::table($source['entities'][0]);
+        // Handle both old and new format
+        $mainEntity = is_array($source['entities']) && !isset($source['entities'][0]) 
+            ? array_key_first($source['entities']) 
+            : $source['entities'][0];
+
+        $tableName = is_array($source['entities']) && !isset($source['entities'][0])
+            ? $source['entities'][$mainEntity]['table']
+            : $mainEntity;
+
+        $query = DB::table($tableName);
 
         $this->applyJoins($query, $source);
         $this->applyConditions($query, $source);
@@ -34,20 +43,36 @@ class QueryBuilder
         }
 
         foreach ($source['relationships'] as $relationship) {
-            $parts = explode(' ', $relationship);
-            if (count($parts) !== 3) {
-                throw new InvalidArgumentException("Invalid relationship format: {$relationship}");
-            }
+            if (is_string($relationship)) {
+                // Old format: "users hasMany orders"
+                $parts = explode(' ', $relationship);
+                if (count($parts) !== 3) {
+                    throw new InvalidArgumentException("Invalid relationship format: {$relationship}");
+                }
 
-            [$leftTable, $type, $rightTable] = $parts;
-            $this->applyJoin($query, $leftTable, $type, $rightTable);
+                [$leftTable, $type, $rightTable] = $parts;
+                $this->applyJoinOldFormat($query, $leftTable, $type, $rightTable);
+            } else {
+                // New format: {type: one_to_many, from: users, to: orders, on: {...}}
+                if (!isset($relationship['type'], $relationship['from'], $relationship['to'], $relationship['on'])) {
+                    throw new InvalidArgumentException("Invalid relationship format");
+                }
+
+                $this->applyJoinNewFormat(
+                    $query,
+                    $relationship['from'],
+                    $relationship['type'],
+                    $relationship['to'],
+                    $relationship['on']
+                );
+            }
         }
     }
 
     /**
-     * Apply a single join
+     * Apply a join using the old format
      */
-    protected function applyJoin(Builder $query, string $leftTable, string $type, string $rightTable): void
+    protected function applyJoinOldFormat(Builder $query, string $leftTable, string $type, string $rightTable): void
     {
         $method = match ($type) {
             'hasMany' => 'leftJoin',
@@ -64,6 +89,24 @@ class QueryBuilder
             '=',
             "{$rightTable}.{$foreignKey}"
         );
+    }
+
+    /**
+     * Apply a join using the new format
+     */
+    protected function applyJoinNewFormat(Builder $query, string $fromTable, string $type, string $toTable, array $on): void
+    {
+        $method = match ($type) {
+            'one_to_many' => 'leftJoin',
+            'one_to_one' => 'leftJoin',
+            default => throw new InvalidArgumentException("Unsupported join type: {$type}")
+        };
+
+        $query->$method($toTable, function ($join) use ($on) {
+            foreach ($on as $leftColumn => $rightColumn) {
+                $join->on($leftColumn, '=', $rightColumn);
+            }
+        });
     }
 
     /**
@@ -93,9 +136,18 @@ class QueryBuilder
     protected function applySelects(Builder $query, array $source): void
     {
         $selects = [];
+
+        // Handle both old and new format
         foreach ($source['mapping'] as $field) {
-            if (is_string($field)) {
-                // Handle simple field mapping like "id: users.id"
+            if (is_array($field) && isset($field['source'], $field['target'])) {
+                // New format: {source: users.id, target: user_id}
+                if (isset($field['aggregate'])) {
+                    $selects[] = $this->buildAggregateSelect($field['source'], $field['target'], $field['aggregate']);
+                } else {
+                    $selects[] = "{$field['source']} as {$field['target']}";
+                }
+            } elseif (is_string($field)) {
+                // Old format: "id: users.id"
                 $parts = explode(':', $field, 2);
                 if (count($parts) === 2) {
                     $alias = trim($parts[0]);
@@ -105,12 +157,12 @@ class QueryBuilder
                     $selects[] = $field;
                 }
             } else {
-                // Handle complex field definitions
+                // Old format: complex field definitions
                 foreach ($field as $alias => $definition) {
                     if (is_string($definition)) {
                         $selects[] = "{$definition} as {$alias}";
                     } else {
-                        $selects[] = $this->buildAggregateSelect($definition, $alias);
+                        $selects[] = $this->buildAggregateSelect($definition['column'], $alias, $definition['function']);
                     }
                 }
             }
@@ -122,48 +174,32 @@ class QueryBuilder
     /**
      * Build an aggregate select statement
      */
-    protected function buildAggregateSelect(array $field, string $alias): Expression
+    protected function buildAggregateSelect(string $column, string $alias, string $function): Expression
     {
-        // Handle aggregate functions
-        if (isset($field['function'])) {
-            $function = $field['function'];
+        return match($function) {
+            'sum' => DB::raw("SUM({$column}) as {$alias}"),
+            'count' => DB::raw("COUNT({$column}) as {$alias}"),
+            'avg' => DB::raw("AVG({$column}) as {$alias}"),
+            'min' => DB::raw("MIN({$column}) as {$alias}"),
+            'max' => DB::raw("MAX({$column}) as {$alias}"),
+            'concat' => $this->buildConcatExpression($column, $alias),
+            default => throw new InvalidArgumentException("Unsupported aggregate function: {$function}")
+        };
+    }
 
-            // Handle count function
-            if ($function === 'count') {
-                return DB::raw("COUNT({$field['column']}) as {$alias}");
-            }
+    /**
+     * Build a concatenation expression
+     */
+    protected function buildConcatExpression(string $column, string $alias): Expression
+    {
+        $parts = explode(',', $column);
+        $concatParts = array_map(function ($part) {
+            $part = trim($part);
+            return strpos($part, '.') === false ? "'{$part}'" : $part;
+        }, $parts);
 
-            // Handle sum function
-            if ($function === 'sum') {
-                return DB::raw("SUM({$field['column']}) as {$alias}");
-            }
-
-            // Handle concat function
-            if ($function === 'concat') {
-                $columns = $field['columns'] ?? [];
-                if (empty($columns)) {
-                    throw new InvalidArgumentException('Missing columns for concat function');
-                }
-
-                // Process each column for concatenation
-                $concatParts = array_map(function ($col) {
-                    if (is_string($col) && strpos($col, '.') === false) {
-                        // This is a string literal, wrap in quotes
-                        return "'{$col}'";
-                    }
-
-                    // This is a column reference, use as is
-                    return $col;
-                }, $columns);
-
-                // Use SQLite's string concatenation operator (||)
-                $concat = implode(' || ', $concatParts);
-
-                return DB::raw("({$concat}) as {$alias}");
-            }
-        }
-
-        throw new InvalidArgumentException('Invalid field definition in mapping');
+        $concat = implode(' || ', $concatParts);
+        return DB::raw("({$concat}) as {$alias}");
     }
 
     /**
