@@ -1,0 +1,61 @@
+{
+    "name": "laravelplus/etl-manifesto",
+    "description": "declarative ETL tool",
+    "keywords": [
+        "laravelplus",
+        "etl-manifesto"
+    ],
+    "homepage": "https://github.com/laravelplus/etl-manifesto",
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Nejc Cotic",
+            "email": "nejc@after.si",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "illuminate/support": "^12.0",
+        "illuminate/database": "^12.0",
+        "symfony/yaml": "^6.4|^7.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.13",
+        "orchestra/testbench": "^10.0",
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Laravelplus\\EtlManifesto\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Laravelplus\\EtlManifesto\\Tests\\": "tests"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "test-coverage": "vendor/bin/phpunit --coverage-html coverage"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Laravelplus\\EtlManifesto\\EtlManifestoServiceProvider"
+            ],
+            "aliases": {
+                "EtlManifesto": "Laravelplus\\EtlManifesto\\EtlManifestoFacade"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
