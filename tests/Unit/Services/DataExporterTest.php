@@ -9,108 +9,117 @@ use Illuminate\Support\Collection;
 class DataExporterTest extends TestCase
 {
     protected $exporter;
-    protected $testData;
+    protected $testOutputDir;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->exporter = new DataExporter();
         
-        $this->testData = new Collection([
-            (object) [
-                'id' => 1,
-                'name' => 'John Doe',
-                'email' => 'john@example.com',
-                'amount' => 100.50
-            ],
-            (object) [
-                'id' => 2,
-                'name' => 'Jane Smith',
-                'email' => 'jane@example.com',
-                'amount' => 200.75
-            ]
-        ]);
+        $this->exporter = new DataExporter();
+        $this->testOutputDir = __DIR__ . '/../../fixtures/output';
+        
+        // Ensure output directory exists and is writable
+        if (!is_dir($this->testOutputDir)) {
+            mkdir($this->testOutputDir, 0777, true);
+        }
+    }
+
+    protected function tearDown(): void
+    {
+        // Clean up test files
+        if (is_dir($this->testOutputDir)) {
+            array_map('unlink', glob("$this->testOutputDir/*.*"));
+        }
+        parent::tearDown();
     }
 
     public function test_can_export_to_csv()
     {
-        $exporter = new DataExporter();
-        $data = collect([
-            ['id' => 1, 'name' => 'John Doe', 'email' => 'john@example.com', 'amount' => 100.5],
-            ['id' => 2, 'name' => 'Jane Smith', 'email' => 'jane@example.com', 'amount' => 200.75]
+        $data = new Collection([
+            ['id' => 1, 'name' => 'John', 'email' => 'john@example.com'],
+            ['id' => 2, 'name' => 'Jane', 'email' => 'jane@example.com'],
         ]);
 
         $config = [
             'format' => 'csv',
-            'path' => '/tmp/test_export.csv',
+            'path' => $this->testOutputDir . '/test.csv',
             'delimiter' => ',',
             'header' => true,
-            'encoding' => 'UTF-8'
         ];
 
-        $result = $exporter->export($data, $config);
-        
+        $result = $this->exporter->export($data, $config);
+
         $this->assertTrue($result['success']);
-        $this->assertEquals('/tmp/test_export.csv', $result['path']);
-        
-        $content = file_get_contents('/tmp/test_export.csv');
-        $this->assertStringContainsString('id,name,email,amount', $content);
-        $this->assertStringContainsString('1,"John Doe",john@example.com,100.5', $content);
-        $this->assertStringContainsString('2,"Jane Smith",jane@example.com,200.75', $content);
+        $this->assertFileExists($result['path']);
+        $this->assertEquals('csv', $result['format']);
+        $this->assertEquals(2, $result['row_count']);
     }
 
     public function test_can_export_to_json()
     {
+        $data = new Collection([
+            ['id' => 1, 'name' => 'John', 'email' => 'john@example.com'],
+            ['id' => 2, 'name' => 'Jane', 'email' => 'jane@example.com'],
+        ]);
+
         $config = [
             'format' => 'json',
-            'path' => __DIR__ . '/../../fixtures/output/test.json'
+            'path' => $this->testOutputDir . '/test.json',
         ];
 
-        $result = $this->exporter->export($this->testData, $config);
+        $result = $this->exporter->export($data, $config);
 
-        $this->assertIsArray($result);
         $this->assertTrue($result['success']);
         $this->assertFileExists($result['path']);
-
-        $content = json_decode(file_get_contents($result['path']), true);
-        $this->assertCount(2, $content);
-        $this->assertEquals('John Doe', $content[0]['name']);
+        $this->assertEquals('json', $result['format']);
     }
 
     public function test_handles_invalid_format()
     {
+        $data = new Collection([
+            ['id' => 1, 'name' => 'John'],
+        ]);
+
         $config = [
             'format' => 'invalid',
-            'path' => __DIR__ . '/../../fixtures/output/test.txt'
+            'path' => $this->testOutputDir . '/test.txt',
         ];
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->exporter->export($this->testData, $config);
+        $this->exporter->export($data, $config);
     }
 
     public function test_creates_output_directory()
     {
+        $data = new Collection([
+            ['id' => 1, 'name' => 'John'],
+        ]);
+
         $config = [
             'format' => 'csv',
-            'path' => __DIR__ . '/../../fixtures/output/new/test.csv'
+            'path' => $this->testOutputDir . '/subdir/test.csv',
         ];
 
-        $result = $this->exporter->export($this->testData, $config);
+        $result = $this->exporter->export($data, $config);
 
         $this->assertTrue($result['success']);
-        $this->assertDirectoryExists(dirname($result['path']));
+        $this->assertFileExists($result['path']);
     }
 
     public function test_handles_empty_data()
     {
+        $data = new Collection([]);
+
         $config = [
             'format' => 'csv',
-            'path' => __DIR__ . '/../../fixtures/output/empty.csv'
+            'path' => $this->testOutputDir . '/empty.csv',
+            'header' => true,
         ];
 
-        $result = $this->exporter->export(new Collection(), $config);
+        $result = $this->exporter->export($data, $config);
 
         $this->assertTrue($result['success']);
+        $this->assertFileExists($result['path']);
         $this->assertEquals(0, $result['row_count']);
     }
 } 

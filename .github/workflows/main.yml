@@ -38,6 +38,18 @@ jobs:
                   echo "::add-matcher::${{ runner.tool_cache }}/php.json"
                   echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
 
+            - name: Create .env file
+              run: |
+                  echo "APP_ENV=testing" > .env
+                  echo "DB_CONNECTION=sqlite" >> .env
+                  echo "DB_DATABASE=:memory:" >> .env
+                  echo "APP_KEY=base64:testkey123456789012345678901234567890" >> .env
+
+            - name: Create test directories
+              run: |
+                  mkdir -p tests/fixtures/output
+                  chmod -R 777 tests/fixtures/output
+
             - name: Install dependencies
               run: |
                   composer require "laravel/framework:${{ matrix.laravel }}" "orchestra/testbench:${{ matrix.testbench }}" --no-interaction --no-update

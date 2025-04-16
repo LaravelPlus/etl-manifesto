@@ -2,33 +2,22 @@
 
 namespace Laravelplus\EtlManifesto\Tests;
 
-use Dotenv\Dotenv;
-use Illuminate\Foundation\Application;
+use Orchestra\Testbench\TestCase as Orchestra;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Config\Repository;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Illuminate\Database\DatabaseManager;
-use PHPUnit\Framework\TestCase as BaseTestCase;
+use Illuminate\Database\Connectors\ConnectionFactory;
 
-class TestCase extends BaseTestCase
+class TestCase extends Orchestra
 {
-    protected $app;
-    protected $capsule;
-
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Load environment variables
-        $dotenv = Dotenv::createImmutable(__DIR__ . '/..');
-        $dotenv->load();
-
         // Create Laravel application instance
-        $this->app = new Application();
-
-        // Register config
+        $this->app = new \Illuminate\Foundation\Application();
         $this->app->singleton('config', function() {
             return new Repository([
                 'database' => [
@@ -43,7 +32,7 @@ class TestCase extends BaseTestCase
                 ],
             ]);
         });
-
+        
         // Set up database
         $this->capsule = new Capsule;
         $this->capsule->addConnection([
@@ -53,30 +42,31 @@ class TestCase extends BaseTestCase
         ]);
         $this->capsule->setAsGlobal();
         $this->capsule->bootEloquent();
-
-        // Register database manager
-        $this->app->singleton('db', function($app) {
-            return new DatabaseManager($app, $this->capsule->getDatabaseManager()->getConnections());
+        
+        // Register database service
+        $this->app->singleton('db.factory', function() {
+            return new ConnectionFactory($this->app);
         });
-
+        
+        $this->app->singleton('db', function() {
+            return $this->capsule->getDatabaseManager();
+        });
+        
         // Set facade root
         Facade::setFacadeApplication($this->app);
-
-        // Drop existing tables if they exist
-        $this->dropTables();
     }
 
-    protected function dropTables(): void
+    protected function getPackageProviders($app)
     {
-        $tables = ['users', 'orders', 'payments'];
-        foreach ($tables as $table) {
-            $this->capsule->schema()->dropIfExists($table);
-        }
+        return [
+            \Laravelplus\EtlManifesto\EtlManifestoServiceProvider::class,
+        ];
     }
 
-    protected function tearDown(): void
+    protected function getPackageAliases($app)
     {
-        $this->dropTables();
-        parent::tearDown();
+        return [
+            'EtlManifesto' => \Laravelplus\EtlManifesto\Facades\EtlManifesto::class,
+        ];
     }
 } 
