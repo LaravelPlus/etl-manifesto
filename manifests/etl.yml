@@ -1,0 +1,64 @@
+etl:
+  - id: monthly_user_summary
+    name: Monthly User Purchase Summary
+    description: >
+      This task generates a report of users with total orders and total spend,
+      joined across users, orders, and payments, filtered to last month.
+
+    source:
+      entities:
+        - users
+        - orders
+        - payments
+
+      relationships:
+        - users hasMany orders
+        - orders hasOne payments
+
+      conditions:
+        - orders.created_at: last_month
+
+      mapping:
+        - id: users.id
+        - name: users.name
+        - email: users.email
+        - total_orders:
+            function: count
+            column: orders.id
+        - total_spent:
+            function: sum
+            column: payments.amount
+        - user_display:
+            function: concat
+            columns:
+              - users.name
+              - " <"
+              - users.email
+              - ">"
+
+      group_by:
+        - users.id
+        - users.name
+        - users.email
+
+      post_group_by:
+        - average_order_value:
+            function: divide
+            args:
+              - total_spent
+              - total_orders
+
+      transform:
+        - email: lower
+
+      cast:
+        - total_spent: float
+        - total_orders: integer
+        - email: string
+
+    output:
+      format: csv
+      path: exports/monthly_user_summary.csv
+      delimiter: ","
+      header: true
+      encoding: UTF-8
