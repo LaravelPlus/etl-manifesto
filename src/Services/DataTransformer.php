@@ -10,54 +10,48 @@ class DataTransformer
     /**
      * Apply transformations to the data
      */
-    public function transform(Collection $data, array $transformations, array $casts = []): Collection
+    public function transform($data, array $config)
     {
-        return $data->map(function ($item) use ($transformations, $casts) {
-            $transformed = (array) $item;
+        if ($data instanceof Collection) {
+            $data = $data->first();
+        }
 
-            // Apply transformations
-            foreach ($transformations as $field => $transform) {
-                if (isset($transformed[$field])) {
-                    $transformed[$field] = $this->applyTransform($transformed[$field], $transform);
-                }
-            }
+        if (is_array($data)) {
+            $data = $data[0] ?? null;
+        }
 
-            // Apply type casting
-            foreach ($casts as $field => $type) {
-                if (isset($transformed[$field])) {
-                    $transformed[$field] = $this->applyCast($transformed[$field], $type);
-                }
-            }
+        if ($data === null) {
+            return null;
+        }
 
-            return $transformed;
-        });
-    }
+        $type = $config['type'] ?? null;
 
-    /**
-     * Apply a single transformation
-     */
-    protected function applyTransform($value, string $transform)
-    {
-        return match ($transform) {
-            'lower' => strtolower($value),
-            'upper' => strtoupper($value),
-            'trim' => trim($value),
-            default => throw new InvalidArgumentException("Unsupported transform: {$transform}")
+        return match($type) {
+            'lower' => strtolower((string)$data),
+            'upper' => strtoupper((string)$data),
+            'date' => $this->formatDate($data, $config['format'] ?? 'Y-m-d'),
+            'number' => $this->formatNumber($data, $config['decimals'] ?? 2),
+            'boolean' => $this->formatBoolean($data),
+            default => $data
         };
     }
 
-    /**
-     * Apply type casting
-     */
-    protected function applyCast($value, string $type)
+    protected function formatDate($date, string $format): string
     {
-        return match ($type) {
-            'integer' => (int) $value,
-            'float' => (float) $value,
-            'string' => (string) $value,
-            'boolean' => (bool) $value,
-            default => throw new InvalidArgumentException("Unsupported cast type: {$type}")
-        };
+        if (is_numeric($date)) {
+            return date($format, $date);
+        }
+        return date($format, strtotime($date));
+    }
+
+    protected function formatNumber($number, int $decimals): string
+    {
+        return number_format((float)$number, $decimals);
+    }
+
+    protected function formatBoolean($value): string
+    {
+        return $value ? '1' : '0';
     }
 
     /**
