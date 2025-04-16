@@ -27,7 +27,7 @@ class QueryBuilder
 
         $this->applyJoins($query, $source);
         $this->applyConditions($query, $source);
-        $this->applySelects($query, $source);
+        $this->applySelects($query, $source['mapping']);
         $this->applyGroupBy($query, $source);
 
         return $query;
@@ -133,58 +133,67 @@ class QueryBuilder
     /**
      * Apply select statements
      */
-    protected function applySelects(Builder $query, array $source): void
+    protected function applySelects(Builder $query, array $mapping): void
     {
-        $selects = [];
-
-        // Handle both old and new format
-        foreach ($source['mapping'] as $field) {
-            if (is_array($field) && isset($field['source'], $field['target'])) {
-                // New format: {source: users.id, target: user_id}
-                if (isset($field['aggregate'])) {
-                    $selects[] = $this->buildAggregateSelect($field['source'], $field['target'], $field['aggregate']);
-                } else {
-                    $selects[] = "{$field['source']} as {$field['target']}";
-                }
-            } elseif (is_string($field)) {
-                // Old format: "id: users.id"
-                $parts = explode(':', $field, 2);
+        foreach ($mapping as $item) {
+            if (is_string($item)) {
+                // Handle simple string format: "id: users.id"
+                $parts = explode(':', $item, 2);
                 if (count($parts) === 2) {
                     $alias = trim($parts[0]);
                     $column = trim($parts[1]);
-                    $selects[] = "{$column} as {$alias}";
+                    $query->selectRaw("{$column} as {$alias}");
                 } else {
-                    $selects[] = $field;
+                    $query->selectRaw($item);
                 }
-            } else {
-                // Old format: complex field definitions
-                foreach ($field as $alias => $definition) {
-                    if (is_string($definition)) {
-                        $selects[] = "{$definition} as {$alias}";
-                    } else {
-                        $selects[] = $this->buildAggregateSelect($definition['column'], $alias, $definition['function']);
+            } elseif (is_array($item)) {
+                // Handle array format with alias and config
+                foreach ($item as $alias => $config) {
+                    if (is_string($config)) {
+                        // Simple column mapping: "id: users.id"
+                        $query->selectRaw("{$config} as {$alias}");
+                    } elseif (is_array($config)) {
+                        if (isset($config['function'])) {
+                            // Function-based mapping
+                            $function = $config['function'];
+                            if (isset($config['columns'])) {
+                                // Handle functions that take multiple columns (like concat)
+                                $columns = $config['columns'];
+                                $concatenated = implode(' || ', array_map(function($col) {
+                                    return is_string($col) ? "'{$col}'" : $col;
+                                }, $columns));
+                                $query->selectRaw("({$concatenated}) as {$alias}");
+                            } else {
+                                // Handle functions that take a single column
+                                $column = $config['column'] ?? null;
+                                if ($column === null) {
+                                    throw new InvalidArgumentException("Column must be specified for function {$function}");
+                                }
+                                $this->buildAggregateSelect($query, $column, $alias, $function);
+                            }
+                        } else {
+                            throw new InvalidArgumentException("Invalid mapping configuration");
+                        }
                     }
                 }
             }
         }
-
-        $query->select($selects);
     }
 
     /**
      * Build an aggregate select statement
      */
-    protected function buildAggregateSelect(string $column, string $alias, string $function): Expression
+    protected function buildAggregateSelect(Builder $query, string $column, string $alias, string $function): void
     {
-        return match ($function) {
-            'sum' => DB::raw("SUM({$column}) as {$alias}"),
-            'count' => DB::raw("COUNT({$column}) as {$alias}"),
-            'avg' => DB::raw("AVG({$column}) as {$alias}"),
-            'min' => DB::raw("MIN({$column}) as {$alias}"),
-            'max' => DB::raw("MAX({$column}) as {$alias}"),
+        $query->selectRaw(match ($function) {
+            'sum' => "SUM({$column}) as {$alias}",
+            'count' => "COUNT({$column}) as {$alias}",
+            'avg' => "AVG({$column}) as {$alias}",
+            'min' => "MIN({$column}) as {$alias}",
+            'max' => "MAX({$column}) as {$alias}",
             'concat' => $this->buildConcatExpression($column, $alias),
             default => throw new InvalidArgumentException("Unsupported aggregate function: {$function}")
-        };
+        });
     }
 
     /**
