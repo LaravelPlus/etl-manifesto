@@ -2,26 +2,61 @@
 
 namespace Laravelplus\EtlManifesto\Tests;
 
-use Orchestra\Testbench\TestCase as Orchestra;
-use Laravelplus\EtlManifesto\EtlManifestoServiceProvider;
+use Dotenv\Dotenv;
+use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Config\Repository;
+use Illuminate\Support\Facades\Facade;
+use Illuminate\Database\Capsule\Manager as Capsule;
+use PHPUnit\Framework\TestCase as BaseTestCase;
 
-class TestCase extends Orchestra
+class TestCase extends BaseTestCase
 {
-    protected function getPackageProviders($app)
+    protected $app;
+    protected $capsule;
+
+    protected function setUp(): void
     {
-        return [
-            EtlManifestoServiceProvider::class,
-        ];
+        parent::setUp();
+
+        // Load environment variables
+        $dotenv = Dotenv::createImmutable(__DIR__ . '/..');
+        $dotenv->load();
+
+        // Create Laravel application instance
+        $this->app = new Application();
+        $this->app->singleton('config', function() {
+            return new Repository([
+                'database' => [
+                    'default' => 'sqlite',
+                    'connections' => [
+                        'sqlite' => [
+                            'driver' => 'sqlite',
+                            'database' => ':memory:',
+                            'prefix' => '',
+                        ],
+                    ],
+                ],
+            ]);
+        });
+
+        // Set up database
+        $this->capsule = new Capsule;
+        $this->capsule->addConnection([
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+        ]);
+        $this->capsule->setAsGlobal();
+        $this->capsule->bootEloquent();
+
+        // Set facade root
+        Facade::setFacadeApplication($this->app);
     }
 
-    protected function getEnvironmentSetUp($app)
+    protected function tearDown(): void
     {
-        // Setup default database to use sqlite :memory:
-        $app['config']->set('database.default', 'testbench');
-        $app['config']->set('database.connections.testbench', [
-            'driver'   => 'sqlite',
-            'database' => ':memory:',
-            'prefix'   => '',
-        ]);
+        parent::tearDown();
     }
 } 
