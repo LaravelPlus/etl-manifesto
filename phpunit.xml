@@ -3,9 +3,6 @@
          xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.3/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          colors="true"
-         verbose="true"
-         convertWarningsToExceptions="false"
-         stopOnFailure="false"
          displayDetailsOnTestsThatTriggerWarnings="true">
     <testsuites>
         <testsuite name="ETL Manifesto Test Suite">
